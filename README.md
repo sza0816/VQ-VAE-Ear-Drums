@@ -13,7 +13,9 @@
         <img src="https://img.shields.io/twitter/url/https/shields.io.svg?style=social" /></a>
 
 </p>
+## This Repository is adapted from https://github.com/AntixK/PyTorch-VAE. Appreciate it!
 
+**Update 7/3/2025:** Adjusted PyTorch Lightning import commands to support 2.5.2 version
 **Update 22/12/2021:** Added support for PyTorch Lightning 1.5.6 version and cleaned up the code.
 
 A collection of Variational AutoEncoders (VAEs) implemented in pytorch with focus on reproducibility. The aim of this project is to provide
