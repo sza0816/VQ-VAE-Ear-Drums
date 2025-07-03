@@ -12,16 +12,31 @@ import zipfile
 
 
 # Add your custom dataset class here
-class MyDataset(Dataset):
-    def __init__(self):
-        pass
-    
+class EarDrumDataset(Dataset):
+    def __init__(
+        self, 
+        root, 
+        split = 'train', 
+        transform = None):
+
+        self.data_dir = Path(root)/'Normal'
+        self.transforms = transform
+
+        img = sorted([f for f in self.data_dir.iterdir() if f.suffix in ['.png']])
+
+        if split == 'train':
+            self.imgs = imgs[:int(len(imgs)*0.75)]
+        else: 
+            self.imgs = imgs[int(len(imgs)*0.75):]
     
     def __len__(self):
-        pass
+        return len(self.imgs)
     
     def __getitem__(self, idx):
-        pass
+        img = default_loader(self.imgs[idx])
+        if self.transforms:
+            img = self.transforms(img)
+        return img, 0.0
 
 
 class MyCelebA(CelebA):
@@ -63,7 +78,7 @@ class OxfordPets(Dataset):
         
         return img, 0.0 # dummy datat to prevent breaking 
 
-class VAEDataset(LightningDataModule):
+class VAEDataset(LightningDataModule):                        # imported to run.py
     """
     PyTorch Lightning data module 
 
@@ -124,7 +139,7 @@ class VAEDataset(LightningDataModule):
 #             transform=val_transforms,
 #         )
         
-#       =========================  CelebA Dataset  =========================
+#       =========================  Ear Drum Dataset  =========================
     
         train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
                                               transforms.CenterCrop(148),
@@ -136,20 +151,12 @@ class VAEDataset(LightningDataModule):
                                             transforms.Resize(self.patch_size),
                                             transforms.ToTensor(),])
         
-        self.train_dataset = MyCelebA(
-            self.data_dir,
-            split='train',
-            transform=train_transforms,
-            download=False,
-        )
-        
-        # Replace CelebA with your dataset
-        self.val_dataset = MyCelebA(
-            self.data_dir,
-            split='test',
-            transform=val_transforms,
-            download=False,
-        )
+        # self.train_dataset = MyCelebA(self.data_dir, split='train', transform=train_transforms, download=False)
+        # self.val_dataset = MyCelebA(self.data_dir, split='test', transform=val_transforms, download=False)
+
+        # replace MyCelebA dataset with EarDrumDataset
+        self.train_dataset = EarDrumDataset(self.data_dir, split='train', transform=train_transforms)
+        self.val_dataset = EarDrumDataset(self.data_dir, split='test', transform=val_transforms)
 #       ===============================================================
         
     def train_dataloader(self) -> DataLoader:

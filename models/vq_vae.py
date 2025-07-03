@@ -223,3 +223,5 @@ class VQVAE(BaseVAE):
         """
 
         return self.forward(x)[0]
+
+#

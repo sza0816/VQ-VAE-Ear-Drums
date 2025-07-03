@@ -1,5 +1,5 @@
 model_params:
-  name: 'VQVAE'
+  name: 'VQVAE'              # model name
   in_channels: 3
   embedding_dim: 64
   num_embeddings: 512
@@ -7,7 +7,9 @@ model_params:
   beta: 0.25
 
 data_params:
-  data_path: "Data/"
+  data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"
+# data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/human_selected_new_all" 
+
   train_batch_size: 64
   val_batch_size:  64
   patch_size: 64
@@ -19,10 +21,10 @@ exp_params:
   weight_decay: 0.0
   scheduler_gamma: 0.0
   kld_weight: 0.00025
-  manual_seed: 1265
+  manual_seed: 1265             # seed_everything
 
 trainer_params:
-  gpus: [1]
+  gpus: [1]                      # used for pin_memory
   max_epochs: 10
 
 logging_params:
