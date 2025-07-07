@@ -10,6 +10,7 @@ from torchvision import transforms
 import torchvision.utils as vutils
 from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 #
 
 class VAEXperiment(pl.LightningModule):
@@ -26,7 +27,10 @@ class VAEXperiment(pl.LightningModule):
 
         self.training_step_outputs = []
         self.validation_step_outputs = []
-        
+
+        self.train_losses = []
+        self.val_losses = []
+
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -128,10 +132,24 @@ class VAEXperiment(pl.LightningModule):
         avg_loss = torch.stack(self.training_step_outputs).mean() 
         self.log("train_epoch_loss", avg_loss, prog_bar=True, sync_dist=True) 
         print(f"\n[Epoch {self.current_epoch}] Train Loss: {avg_loss:.4f}") 
+        self.train_losses.append(avg_loss.item())
         self.training_step_outputs.clear() 
 
     def on_validation_epoch_end(self): 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
         self.log("val_epoch_loss", avg_loss, prog_bar=True, sync_dist=True) 
         print(f"\n[Epoch {self.current_epoch}] Val Loss: {avg_loss:.4f}") 
+        self.val_losses.append(avg_loss.item())
         self.validation_step_outputs.clear() 
+
+    def on_train_end(self): 
+        # import matplotlib.pyplot as plt 
+        plt.figure() 
+        plt.plot(self.train_losses, label="Train Loss") 
+        plt.plot(self.val_losses, label="Val Loss") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("Loss") 
+        plt.legend() 
+        plt.title("Training and Validation Loss") 
+        plt.savefig(os.path.join(self.logger.log_dir, "loss_curve.png")) 
+        plt.show() 
