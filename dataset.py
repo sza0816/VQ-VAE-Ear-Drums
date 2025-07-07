@@ -23,12 +23,13 @@ class EarDrumDataset(Dataset):
         self.transforms = transform
 
         imgs = sorted([f for f in self.data_dir.iterdir() if f.suffix in ['.png']])
-
+        
         if split == 'train':
             self.imgs = imgs[:int(len(imgs)*0.75)]
         else: 
             self.imgs = imgs[int(len(imgs)*0.75):]
-    
+        print(f"[Dataset] check dataset size: {len(self.imgs)}")                       # check number of images
+        
     def __len__(self):
         return len(self.imgs)
     

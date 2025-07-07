@@ -50,6 +50,7 @@ runner = Trainer(logger=tb_logger,
                                      save_last= True),
                  ],
                  strategy=DDPStrategy(find_unused_parameters=False),
+                 log_every_n_steps = 1,                                   # 
                  **config['trainer_params'])
 
 

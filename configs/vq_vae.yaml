@@ -7,26 +7,26 @@ model_params:
   beta: 0.25
 
 data_params:
-  data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"
+  data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
 # data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/human_selected_new_all" 
 
-  train_batch_size: 64
-  val_batch_size:  64
+  train_batch_size: 16
+  val_batch_size:  16
   patch_size: 64
   num_workers: 4
 
 
 exp_params:
-  LR: 0.005
+  LR: 0.001                             # adjust learning rate
   weight_decay: 0.0
   scheduler_gamma: 0.0
   kld_weight: 0.00025
-  manual_seed: 1265             # seed_everything
+  manual_seed: 1265
 
 trainer_params:
   accelerator: gpu
-  devices: 1                      # used for pin_memory
-  max_epochs: 30
+  devices: 1 
+  max_epochs: 100                      # adjust epochs
 
 logging_params:
   save_dir: "logs/"
