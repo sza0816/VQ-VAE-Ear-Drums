@@ -2,7 +2,7 @@ import torch
 from models import BaseVAE
 from torch import nn
 from torch.nn import functional as F
-from .types_ import *
+from .types_ import *                  # import from model/types_.py
 
 class VectorQuantizer(nn.Module):
     """

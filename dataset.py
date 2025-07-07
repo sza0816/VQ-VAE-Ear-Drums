@@ -19,7 +19,7 @@ class EarDrumDataset(Dataset):
         split = 'train', 
         transform = None):
 
-        self.data_dir = Path(root)/'Normal'
+        self.data_dir = Path(root)/'Normal'             # use class Normal of root
         self.transforms = transform
 
         img = sorted([f for f in self.data_dir.iterdir() if f.suffix in ['.png']])
@@ -155,8 +155,8 @@ class VAEDataset(LightningDataModule):                        # imported to run.
         # self.val_dataset = MyCelebA(self.data_dir, split='test', transform=val_transforms, download=False)
 
         # replace MyCelebA dataset with EarDrumDataset
-        self.train_dataset = EarDrumDataset(self.data_dir, split='train', transform=train_transforms)
-        self.val_dataset = EarDrumDataset(self.data_dir, split='test', transform=val_transforms)
+        self.train_dataset = EarDrumDataset(root = self.data_dir, split='train', transform=train_transforms)
+        self.val_dataset = EarDrumDataset(root = self.data_dir, split='test', transform=val_transforms)
 #       ===============================================================
         
     def train_dataloader(self) -> DataLoader:
