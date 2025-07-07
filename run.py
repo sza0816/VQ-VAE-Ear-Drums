@@ -37,7 +37,8 @@ seed_everything(config['exp_params']['manual_seed'], True)
 model = vae_models[config['model_params']['name']](**config['model_params'])
 experiment = VAEXperiment(model, config['exp_params'])        # exp parameter specific to this "model"
 
-data = VAEDataset(**config["data_params"], pin_memory=len(config['trainer_params']['gpus']) != 0)
+pin_memory = config['trainer_params'].get('accelerator', 'cpu') != 'cpu' 
+data = VAEDataset( **config["data_params"], pin_memory=pin_memory ) 
 
 data.setup()
 runner = Trainer(logger=tb_logger,

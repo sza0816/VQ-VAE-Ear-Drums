@@ -22,7 +22,7 @@ class EarDrumDataset(Dataset):
         self.data_dir = Path(root)/'Normal'             # use class Normal of root
         self.transforms = transform
 
-        img = sorted([f for f in self.data_dir.iterdir() if f.suffix in ['.png']])
+        imgs = sorted([f for f in self.data_dir.iterdir() if f.suffix in ['.png']])
 
         if split == 'train':
             self.imgs = imgs[:int(len(imgs)*0.75)]
@@ -39,44 +39,44 @@ class EarDrumDataset(Dataset):
         return img, 0.0
 
 
-class MyCelebA(CelebA):
-    """
-    A work-around to address issues with pytorch's celebA dataset class.
+# class MyCelebA(CelebA):
+#     """
+#     A work-around to address issues with pytorch's celebA dataset class.
     
-    Download and Extract
-    URL : https://drive.google.com/file/d/1m8-EBPgi5MRubrm6iQjafK2QMHDBMSfJ/view?usp=sharing
-    """
+#     Download and Extract
+#     URL : https://drive.google.com/file/d/1m8-EBPgi5MRubrm6iQjafK2QMHDBMSfJ/view?usp=sharing
+#     """
     
-    def _check_integrity(self) -> bool:
-        return True
+#     def _check_integrity(self) -> bool:
+#         return True
     
     
 
-class OxfordPets(Dataset):
-    """
-    URL = https://www.robots.ox.ac.uk/~vgg/data/pets/
-    """
-    def __init__(self, 
-                 data_path: str, 
-                 split: str,
-                 transform: Callable,
-                **kwargs):
-        self.data_dir = Path(data_path) / "OxfordPets"        
-        self.transforms = transform
-        imgs = sorted([f for f in self.data_dir.iterdir() if f.suffix == '.jpg'])
+# class OxfordPets(Dataset):
+#     """
+#     URL = https://www.robots.ox.ac.uk/~vgg/data/pets/
+#     """
+#     def __init__(self, 
+#                  data_path: str, 
+#                  split: str,
+#                  transform: Callable,
+#                 **kwargs):
+#         self.data_dir = Path(data_path) / "OxfordPets"        
+#         self.transforms = transform
+#         imgs = sorted([f for f in self.data_dir.iterdir() if f.suffix == '.jpg'])
         
-        self.imgs = imgs[:int(len(imgs) * 0.75)] if split == "train" else imgs[int(len(imgs) * 0.75):]
+#         self.imgs = imgs[:int(len(imgs) * 0.75)] if split == "train" else imgs[int(len(imgs) * 0.75):]
     
-    def __len__(self):
-        return len(self.imgs)
+#     def __len__(self):
+#         return len(self.imgs)
     
-    def __getitem__(self, idx):
-        img = default_loader(self.imgs[idx])
+#     def __getitem__(self, idx):
+#         img = default_loader(self.imgs[idx])
         
-        if self.transforms is not None:
-            img = self.transforms(img)
+#         if self.transforms is not None:
+#             img = self.transforms(img)
         
-        return img, 0.0 # dummy datat to prevent breaking 
+#         return img, 0.0 # dummy datat to prevent breaking 
 
 class VAEDataset(LightningDataModule):                        # imported to run.py
     """
@@ -144,7 +144,7 @@ class VAEDataset(LightningDataModule):                        # imported to run.
         train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
                                               transforms.CenterCrop(148),
                                               transforms.Resize(self.patch_size),
-                                              transforms.ToTensor(),])
+                                              transforms.ToTensor(),])                   # can add normalize later
         
         val_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
                                             transforms.CenterCrop(148),
@@ -180,7 +180,7 @@ class VAEDataset(LightningDataModule):                        # imported to run.
     def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
         return DataLoader(
             self.val_dataset,
-            batch_size=144,
+            batch_size=self.val_batch_size,
             num_workers=self.num_workers,
             shuffle=True,
             pin_memory=self.pin_memory,
