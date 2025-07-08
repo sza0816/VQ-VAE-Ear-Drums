@@ -8,7 +8,7 @@ from experiment import VAEXperiment
 import torch.backends.cudnn as cudnn
 from pytorch_lightning import Trainer, seed_everything 
 from pytorch_lightning.loggers import TensorBoardLogger 
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint 
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.strategies import DDPStrategy 
 from dataset import VAEDataset
 
@@ -41,13 +41,25 @@ pin_memory = config['trainer_params'].get('accelerator', 'cpu') != 'cpu'
 data = VAEDataset( **config["data_params"], pin_memory=pin_memory ) 
 
 data.setup()
+
+# early stop
+early_stop_callback = EarlyStopping(
+    monitor='val_psnr',                       # early stop monitor visual performance
+    # monitor='val_ssim',
+    patience=40,
+    mode='max',
+    min_delta=0.0001, 
+    verbose=True
+)
+
 runner = Trainer(logger=tb_logger,
                  callbacks=[
                      LearningRateMonitor(),
                      ModelCheckpoint(save_top_k=2, 
                                      dirpath =os.path.join(tb_logger.log_dir , "checkpoints"), 
-                                     monitor= "val_loss",
+                                     monitor= "val_psnr",
                                      save_last= True),
+                    early_stop_callback
                  ],
                  strategy=DDPStrategy(find_unused_parameters=False),
                  log_every_n_steps = 1,                                   # 

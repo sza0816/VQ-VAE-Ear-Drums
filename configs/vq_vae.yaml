@@ -4,7 +4,7 @@ model_params:
   embedding_dim: 128          # 
   num_embeddings: 512
   img_size: 64
-  beta: 0.1                  # take beta back to 0.25 or 0.5(not tested)
+  beta: 0.25                  # take beta back to 0.25 or 0.5(not tested)
 
 data_params:
   data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
@@ -26,7 +26,7 @@ exp_params:
 trainer_params:
   accelerator: gpu
   devices: 1 
-  max_epochs: 200                      # adjust epochs
+  max_epochs: 300                      # adjust epochs
   gradient_clip_val: 1.0
 
 logging_params:
@@ -34,10 +34,10 @@ logging_params:
   name: 'Autoscope_VQVAE'
 
 # Note: 
-# might need early stopping
-# increase capacity
+# increase capacity ?
 # lower lr 
 # adjust reconstruction number of pictures in each epoch ?
 # sample not shown, [Warning] Sampling failed: VQVAE sampler is not implemented.
 # how to look for params ?
 # how to test output ?  
+# how to know when it is overfitted ?
