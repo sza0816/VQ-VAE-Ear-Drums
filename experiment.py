@@ -113,8 +113,9 @@ class VAEXperiment(pl.LightningModule):
                                            f"{self.logger.name}_Epoch_{self.current_epoch}.png"),
                               normalize=True,
                               nrow=12)
-        except Warning:
-            pass
+        except Exception as e:
+            print(f"\n[Warning] Sampling failed: {e}\n")                   # print error message
+            # [Warning] Sampling failed: VQVAE sampler is not implemented.
 
     def configure_optimizers(self):  
 
