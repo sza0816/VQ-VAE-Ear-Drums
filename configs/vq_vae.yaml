@@ -1,10 +1,10 @@
 model_params:
   name: 'VQVAE'              # model name
   in_channels: 3
-  embedding_dim: 32
-  num_embeddings: 128
+  embedding_dim: 64          # 
+  num_embeddings: 512
   img_size: 64
-  beta: 0.1
+  beta: 0.25                  # take beta back to 0.25 or 0.5(not tested)
 
 data_params:
   data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
@@ -17,16 +17,16 @@ data_params:
 
 
 exp_params:
-  LR: 0.001                             # adjust learning rate
+  LR: 0.0005                             # adjust learning rate
   weight_decay: 0.0
-  scheduler_gamma: 0.0
+  scheduler_gamma: 0.99
   kld_weight: 0.00025
   manual_seed: 1265
 
 trainer_params:
   accelerator: gpu
   devices: 1 
-  max_epochs: 50                      # adjust epochs
+  max_epochs: 200                      # adjust epochs
   gradient_clip_val: 1.0
 
 logging_params:
@@ -35,6 +35,9 @@ logging_params:
 
 # Note: 
 # might need early stopping
+# aggressive data augmentation, check
+# increase capacity
+# lower lr 
 # adjust reconstruction number of pictures in each epoch ?
 # sample not shown, [Warning] Sampling failed: VQVAE sampler is not implemented.
 # how to look for params ?

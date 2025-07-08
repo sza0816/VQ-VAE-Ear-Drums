@@ -51,7 +51,6 @@ class EarDrumDataset(Dataset):
 #     def _check_integrity(self) -> bool:
 #         return True
     
-    
 
 # class OxfordPets(Dataset):
 #     """
@@ -79,6 +78,14 @@ class EarDrumDataset(Dataset):
         
 #         return img, 0.0 # dummy datat to prevent breaking 
 
+class GaussianNoise(object):  
+    def __init__(self, mean=0.0, std=1.0):  
+        self.mean = mean 
+        self.std = std 
+    def __call__(self, tensor): 
+    	noise = torch.randn(tensor.size()) * self.std + self.mean 
+    	return tensor + noise 
+ 
 class VAEDataset(LightningDataModule):                        # imported to run.py
     """
     PyTorch Lightning data module 
@@ -139,19 +146,32 @@ class VAEDataset(LightningDataModule):                        # imported to run.
 #             split='val',
 #             transform=val_transforms,
 #         )
-        
+#       ===============================================================
 #       =========================  Ear Drum Dataset  =========================
     
-        train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-                                              transforms.CenterCrop(148),
-                                              transforms.Resize(self.patch_size),
-                                              transforms.ToTensor(),])                   # can add normalize later
+        # train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
+        #                                       transforms.CenterCrop(148),
+        #                                       transforms.Resize(self.patch_size),
+        #                                       transforms.ToTensor(),])                   # can add normalize later
         
-        val_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-                                            transforms.CenterCrop(148),
-                                            transforms.Resize(self.patch_size),
-                                            transforms.ToTensor(),])
-        
+        # val_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
+        #                                     transforms.CenterCrop(148),
+        #                                     transforms.Resize(self.patch_size),
+        #                                     transforms.ToTensor(),])
+        train_transforms = transforms.Compose([ 
+                                        transforms.RandomResizedCrop(64, scale=(0.8, 1.0), ratio=(0.9, 1.1)), 
+                                        transforms.RandomRotation(degrees=(-10, 10)), 
+                                        transforms.ColorJitter(brightness=0.2, contrast=0.2), 
+                                        transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.5), 
+                                        transforms.ToTensor(), 
+                                        transforms.RandomApply([GaussianNoise(mean=0, std=0.05)], p=0.5), 
+        ]) 
+
+        val_transforms = transforms.Compose([ 
+                                        transforms.Resize((64, 64)), 
+                                        transforms.ToTensor(), 
+                                        ]) 
+
         # self.train_dataset = MyCelebA(self.data_dir, split='train', transform=train_transforms, download=False)
         # self.val_dataset = MyCelebA(self.data_dir, split='test', transform=val_transforms, download=False)
 

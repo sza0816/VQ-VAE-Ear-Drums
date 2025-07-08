@@ -213,7 +213,7 @@ class VQVAE(BaseVAE):
     def sample(self,
                num_samples: int,
                current_device: Union[int, str], **kwargs) -> Tensor:
-        raise Warning('VQVAE sampler is not implemented.')
+        raise Warning('VQVAE sampler is not implemented.')                 # sample warning
 
     def generate(self, x: Tensor, **kwargs) -> Tensor:
         """

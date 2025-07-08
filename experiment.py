@@ -96,7 +96,7 @@ class VAEXperiment(pl.LightningModule):
 
 #         test_input, test_label = batch
         recons = self.model.generate(test_input, labels = test_label)
-        vutils.save_image(recons.data,                                                     ### save image from each epoch
+        vutils.save_image(recons.data,                                                              ### save image from each epoch
                           os.path.join(self.logger.log_dir , 
                                        "Reconstructions", 
                                        f"recons_{self.logger.name}_Epoch_{self.current_epoch}.png"),
@@ -123,7 +123,7 @@ class VAEXperiment(pl.LightningModule):
 
         gamma = self.params.get('scheduler_gamma', 0.0) 
         if gamma > 0.0: 
-            scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma) 
+            scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)      # use scheduler
             return [optimizer], [scheduler] 
         
         return optimizer
