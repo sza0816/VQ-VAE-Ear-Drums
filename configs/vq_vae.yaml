@@ -1,25 +1,25 @@
 model_params:
   name: 'VQVAE'              # model name
   in_channels: 3
-  embedding_dim: 128          # 
-  num_embeddings: 512
-  img_size: 64
+  embedding_dim: 64           # 
+  num_embeddings: 256
+  img_size: 128
   beta: 0.25                  # take beta back to 0.25 or 0.5(not tested)
 
 data_params:
   data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
 # data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/human_selected_new_all" 
 
-  train_batch_size: 32
-  val_batch_size:  32
+  train_batch_size: 16
+  val_batch_size:  16
   patch_size: 64
   num_workers: 4
 
 
 exp_params:
-  LR: 0.001                             # adjust learning rate
+  LR: 0.0015                             # adjust learning rate
   weight_decay: 0.0
-  scheduler_gamma: 0.99
+  scheduler_gamma: 0.995
   kld_weight: 0.00025
   manual_seed: 1265
 
@@ -35,9 +35,8 @@ logging_params:
 
 # Note: 
 # increase capacity ?
-# lower lr 
-# adjust reconstruction number of pictures in each epoch ?
+# lower lr 0.0015, 0.001
 # sample not shown, [Warning] Sampling failed: VQVAE sampler is not implemented.
 # how to look for params ?
 # how to test output ?  
-# how to know when it is overfitted ?
+# how to know when it is overfitted ? - compare training vs validation metrics

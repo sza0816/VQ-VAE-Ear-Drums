@@ -11,7 +11,45 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.strategies import DDPStrategy 
 from dataset import VAEDataset
+import sys
 
+class VerboseEarlyStopping(EarlyStopping): 
+    def _run_early_stopping_check(self, trainer): 
+        logs = trainer.callback_metrics 
+        current = logs.get(self.monitor) 
+
+        if current is None: 
+            return  # metric not yet available 
+ 
+        current = current.item() if isinstance(current, torch.Tensor) else float(current) 
+ 
+        if self.best_score is None: 
+            self.best_score = current 
+            self.wait_count = 0 
+            print( 
+                f"[EarlyStopping] Epoch {trainer.current_epoch}: Metric {self.monitor} initialized to {current:.4f}", 
+                file=sys.stderr 
+            ) 
+        else: 
+            # if self.mode == "min": 
+            #     improved = current < self.best_score - self.min_delta 
+            # else: 
+            improved = current > self.best_score + self.min_delta              # using psnr/ssim, max
+    
+            if improved: 
+                improvement = abs(current - self.best_score) 
+                self.best_score = current 
+                self.wait_count = 0 
+                print(f"[EarlyStopping] Epoch {trainer.current_epoch}: Metric {self.monitor} improved by {improvement:.4f} >= {self.min_delta}. New best: {current:.4f}", 
+                    file=sys.stderr) 
+            else: 
+                self.wait_count += 1 
+                if self.wait_count >= self.patience: 
+                    trainer.should_stop = True 
+                    print( 
+                        f"[EarlyStopping] Patience {self.patience} reached. Stopping training at epoch {trainer.current_epoch}.", 
+                        file=sys.stderr) 
+ 
 
 parser = argparse.ArgumentParser(description='Generic runner for VAE models')
 parser.add_argument('--config',  '-c',
@@ -43,22 +81,27 @@ data = VAEDataset( **config["data_params"], pin_memory=pin_memory )
 data.setup()
 
 # early stop
-early_stop_callback = EarlyStopping(
+early_stop_callback = VerboseEarlyStopping(
     monitor='val_psnr',                       # early stop monitor visual performance
     # monitor='val_ssim',
-    patience=40,
+    patience=20,
     mode='max',
-    min_delta=0.0001, 
-    verbose=True
+    min_delta=0.003,                          # increase min metric increase
+    verbose=False
+)
+
+# check point
+checkpoint_callback = ModelCheckpoint(
+    save_top_k=2, 
+    dirpath =os.path.join(tb_logger.log_dir , "checkpoints"), 
+    monitor= "val_psnr",
+    save_last= True
 )
 
 runner = Trainer(logger=tb_logger,
                  callbacks=[
-                     LearningRateMonitor(),
-                     ModelCheckpoint(save_top_k=2, 
-                                     dirpath =os.path.join(tb_logger.log_dir , "checkpoints"), 
-                                     monitor= "val_psnr",
-                                     save_last= True),
+                    LearningRateMonitor(),
+                    checkpoint_callback,
                     early_stop_callback
                  ],
                  strategy=DDPStrategy(find_unused_parameters=False),

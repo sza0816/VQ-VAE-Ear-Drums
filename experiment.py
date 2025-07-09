@@ -28,6 +28,9 @@ class VAEXperiment(pl.LightningModule):
         self.psnr = PeakSignalNoiseRatio() 
         self.ssim = StructuralSimilarityIndexMeasure() 
  
+        self.train_psnrs=[]
+        self.train_ssims=[]
+
         self.val_psnrs = [] 
         self.val_ssims = [] 
     
@@ -104,7 +107,41 @@ class VAEXperiment(pl.LightningModule):
         self.log("train_epoch_loss", avg_loss, prog_bar=True, sync_dist=True) 
         print(f"\n[Epoch {self.current_epoch}] Train Loss: {avg_loss:.4f}") 
         self.train_losses.append(avg_loss.item()) 
-        self.training_step_outputs.clear() 
+        self.training_step_outputs.clear()
+
+        # calculate training psnr & ssim
+        all_train_psnr = [] 
+        all_train_ssim = [] 
+        
+        train_loader = self.trainer.datamodule.train_dataloader() 
+ 
+        for real_img, labels in train_loader: 
+            real_img = real_img.to(self.curr_device) 
+            labels = labels.to(self.curr_device) 
+        
+            with torch.no_grad(): 
+                # take reconstruction result 
+                recons = self.model(real_img, labels=labels)[0] 
+        
+            all_train_psnr.append(self.psnr(recons, real_img).cpu()) 
+            all_train_ssim.append(self.ssim(recons, real_img).cpu()) 
+ 
+        avg_train_psnr = torch.stack(all_train_psnr).mean() 
+        avg_train_ssim = torch.stack(all_train_ssim).mean() 
+        
+        self.log("train_psnr", avg_train_psnr, prog_bar=True, sync_dist=True)  
+        self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)  
+        
+        print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}")  
+ 
+        # record for plotting 
+        if not hasattr(self, 'train_psnrs'): 
+            self.train_psnrs = [] 
+        if not hasattr(self, 'train_ssims'): 
+            self.train_ssims = [] 
+        
+        self.train_psnrs.append(avg_train_psnr.item()) 
+        self.train_ssims.append(avg_train_ssim.item()) 
  
     def on_validation_epoch_end(self): 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
@@ -146,14 +183,25 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "loss_curve.png")) 
         plt.show() 
     
-        # psnr, ssim plot 
-        plt.figure() 
-        plt.plot(self.val_psnrs, label="Val PSNR") 
-        plt.plot(self.val_ssims, label="Val SSIM") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("Metric") 
-        plt.legend() 
-        plt.title("Validation Metrics") 
+        # training & validation psnr, ssim plot 
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
+        axs[0].plot(self.train_psnrs, label="Train PSNR") 
+        axs[0].plot(self.val_psnrs, label="Val PSNR") 
+        axs[0].set_xlabel("Epoch") 
+        axs[0].set_ylabel("PSNR") 
+        axs[0].set_title("PSNR Metrics") 
+        axs[0].legend() 
+
+        axs[1].plot(self.train_ssims, label="Train SSIM") 
+        axs[1].plot(self.val_ssims, label="Val SSIM") 
+        axs[1].set_xlabel("Epoch") 
+        axs[1].set_ylabel("SSIM") 
+        axs[1].set_title("SSIM Metrics") 
+        axs[1].legend() 
+
+        plt.tight_layout() 
         plt.savefig(os.path.join(self.logger.log_dir, "val_metrics.png")) 
-        plt.show() 
+        plt.close() 
+
+ 
     
