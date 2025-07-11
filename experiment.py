@@ -228,3 +228,13 @@ class VAEXperiment(pl.LightningModule):
         plt.title("Pixel Level MSE Comparison PLot")
         plt.savefig(os.path.join(self.logger.log_dir, "mse_curve.png"))
         plt.close()
+
+
+        # print metrics of the final epoch
+        print("\n[Final Metrics]") 
+        print(f"{'Metric':<15} {'Train':>12} {'Validation':>12}") 
+        print("-" * 41) 
+        print(f"{'Loss':<15} {self.train_losses[-1]:>12.6f} {self.val_losses[-1]:>12.6f}") 
+        print(f"{'PSNR':<15} {self.train_psnrs[-1]:>12.2f} {self.val_psnrs[-1]:>12.2f}") 
+        print(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}") 
+        print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
