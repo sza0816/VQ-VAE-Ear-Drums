@@ -39,7 +39,7 @@ class VAEXperiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
 
-    def training_step(self, batch, batch_idx): 
+    def training_step(self, batch, batch_idx):            # 
         real_img, labels = batch 
         self.curr_device = real_img.device 
  
@@ -73,7 +73,7 @@ class VAEXperiment(pl.LightningModule):
         test_input = test_input.to(self.curr_device) 
         test_label = test_label.to(self.curr_device) 
  
-        recons = self.model.generate(test_input, labels=test_label) 
+        recons = self.model.generate(test_input, labels=test_label)                      # image reconstruction
         vutils.save_image(recons.data, 
                         os.path.join(self.logger.log_dir, 
                                     "Reconstructions", 
@@ -81,7 +81,7 @@ class VAEXperiment(pl.LightningModule):
                         normalize=True, 
                         nrow=8) 
 
-        try: 
+        try:                                                                             # image sampling, not yet implemented
             samples = self.model.sample(144, self.curr_device, labels=test_label) 
             vutils.save_image(samples.cpu().data, 
                             os.path.join(self.logger.log_dir, 
@@ -90,7 +90,8 @@ class VAEXperiment(pl.LightningModule):
                                         normalize=True, 
                                         nrow=12) 
         except Exception as e: 
-            print(f"\n[Warning] Sampling failed: {e}\n")           ### print sample err msg
+            # print(f"\n[Warning] Sampling failed: {e}\n")           ### print sample err msg
+            pass
 
     def configure_optimizers(self): 
         optimizer = optim.Adam(self.model.parameters(), lr=self.params['LR'], weight_decay=self.params['weight_decay']) 
@@ -102,7 +103,7 @@ class VAEXperiment(pl.LightningModule):
     
         return optimizer
     
-    def on_train_epoch_end(self): 
+    def on_train_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.training_step_outputs).mean() 
         self.log("train_epoch_loss", avg_loss, prog_bar=True, sync_dist=True) 
         print(f"\n[Epoch {self.current_epoch}] Train Loss: {avg_loss:.4f}") 
@@ -113,7 +114,7 @@ class VAEXperiment(pl.LightningModule):
         all_train_psnr = [] 
         all_train_ssim = [] 
         
-        train_loader = self.trainer.datamodule.train_dataloader() 
+        train_loader = self.trainer.datamodule.train_dataloader()         # run train loader after this epoch
  
         for real_img, labels in train_loader: 
             real_img = real_img.to(self.curr_device) 
@@ -123,8 +124,8 @@ class VAEXperiment(pl.LightningModule):
                 # take reconstruction result 
                 recons = self.model(real_img, labels=labels)[0] 
         
-            all_train_psnr.append(self.psnr(recons, real_img).cpu()) 
-            all_train_ssim.append(self.ssim(recons, real_img).cpu()) 
+            all_train_psnr.append(self.psnr(recons, real_img)) 
+            all_train_ssim.append(self.ssim(recons, real_img)) 
  
         avg_train_psnr = torch.stack(all_train_psnr).mean() 
         avg_train_ssim = torch.stack(all_train_ssim).mean() 
@@ -133,17 +134,11 @@ class VAEXperiment(pl.LightningModule):
         self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)  
         
         print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}")  
- 
-        # record for plotting 
-        if not hasattr(self, 'train_psnrs'): 
-            self.train_psnrs = [] 
-        if not hasattr(self, 'train_ssims'): 
-            self.train_ssims = [] 
         
         self.train_psnrs.append(avg_train_psnr.item()) 
         self.train_ssims.append(avg_train_ssim.item()) 
  
-    def on_validation_epoch_end(self): 
+    def on_validation_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
         self.log("val_epoch_loss", avg_loss, prog_bar=True, sync_dist=True) 
         print(f"\n[Epoch {self.current_epoch}] Val Loss: {avg_loss:.4f}") 

@@ -3,7 +3,7 @@ model_params:
   in_channels: 3
   embedding_dim: 64           # 
   num_embeddings: 256
-  img_size: 128
+  img_size: 64
   beta: 0.25                  # take beta back to 0.25 or 0.5(not tested)
 
 data_params:
@@ -36,7 +36,6 @@ logging_params:
 # Note: 
 # increase capacity ?
 # lower lr 0.0015, 0.001
-# sample not shown, [Warning] Sampling failed: VQVAE sampler is not implemented.
 # how to look for params ?
 # how to test output ?  
 # how to know when it is overfitted ? - compare training vs validation metrics

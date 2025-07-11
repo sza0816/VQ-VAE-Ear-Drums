@@ -213,7 +213,7 @@ class VQVAE(BaseVAE):
     def sample(self,
                num_samples: int,
                current_device: Union[int, str], **kwargs) -> Tensor:
-        raise Warning('VQVAE sampler is not implemented.')                 # sample warning
+        raise Warning('VQVAE sampler is not implemented.')                      # don't need
 
     def generate(self, x: Tensor, **kwargs) -> Tensor:
         """
@@ -222,6 +222,6 @@ class VQVAE(BaseVAE):
         :return: (Tensor) [B x C x H x W]
         """
 
-        return self.forward(x)[0]
+        return self.forward(x)[0]             # take reconstructed img
 
 #

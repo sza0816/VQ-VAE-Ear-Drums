@@ -4,7 +4,7 @@ from models import VQVAE
 from torchsummary import summary
 
 
-class TestVQVAE(unittest.TestCase):
+class TestVQVAE(unittest.TestCase):                        #
 
     def setUp(self) -> None:
         # self.model2 = VAE(3, 10)
