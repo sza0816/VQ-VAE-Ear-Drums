@@ -8,8 +8,8 @@ import pytorch_lightning as pl
 from torchvision import utils as vutils 
 import matplotlib.pyplot as plt 
 
-from torchmetrics.image import PeakSignalNoiseRatio 
-from torchmetrics.image import StructuralSimilarityIndexMeasure 
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image.fid import FrechetInceptionDistance
 from pytorch_lightning.utilities.rank_zero import rank_zero_only 
 
 class VAEXperiment(pl.LightningModule): 
@@ -39,6 +39,9 @@ class VAEXperiment(pl.LightningModule):
         self.train_mses = []             # MSE
         self.val_mses = []
         self.mse_loss_fn = torch.nn.MSELoss()
+
+        self.fid_metric = FrechetInceptionDistance(feature = 2048, reset_real_features=False)
+        self.val_fids = []
  
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
@@ -159,7 +162,7 @@ class VAEXperiment(pl.LightningModule):
         self.val_losses.append(avg_loss.item()) 
         self.validation_step_outputs.clear() 
 
-        # PSNR, SSIM, MSE
+        # PSNR, SSIM, MSE, FID
         all_psnr = [] 
         all_ssim = [] 
         all_mse = []
@@ -167,20 +170,30 @@ class VAEXperiment(pl.LightningModule):
             all_psnr.append(self.psnr(recon, real)) 
             all_ssim.append(self.ssim(recon, real)) 
             all_mse.append(self.mse_loss_fn(recon, real))
-    
+
+            real_255 = (real * 255).clamp(0, 255).to(torch.uint8).to(self.curr_device) 
+            recon_255 = (recon * 255).clamp(0, 255).to(torch.uint8).to(self.curr_device)
+            self.fid_metric.update(real_255, real=True)
+            self.fid_metric.update(recon_255, real=False)
+
         avg_psnr = torch.stack(all_psnr).mean() 
         avg_ssim = torch.stack(all_ssim).mean()
         avg_mse = torch.stack(all_mse).mean()
+        fid_score = self.fid_metric.compute()
  
         self.val_psnrs.append(avg_psnr.item()) 
         self.val_ssims.append(avg_ssim.item()) 
         self.val_mses.append(avg_mse.item())
+
+        self.fid_metric.reset()
+        self.val_fids.append(fid_score.item())
     
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
         self.log("val_ssim", avg_ssim, prog_bar=True, sync_dist=True) 
         self.log("val_mse", avg_mse, prog_bar=True)
+        self.log("val_fid", fid_score, prog_bar=True, sync_dist=True)
     
-        print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}, Val MSE: {avg_mse:.6f}") 
+        print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}, Val MSE: {avg_mse:.6f}, Val FID: {fid_score:.2f}") 
     
         self.validation_recons.clear()
     
@@ -229,12 +242,29 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "mse_curve.png"))
         plt.close()
 
+        # validation FID
+        plt.figure() 
+        plt.plot(self.val_fids, label="Val FID") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("FID") 
+        plt.title("Validation FID") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "fid_curve.png")) 
+        plt.show() 
+
+
+
+
+
+
+
 
         # print metrics of the final epoch
-        print("\n[Final Metrics]") 
+        print("\n[Final Epoch Metrics]") 
         print(f"{'Metric':<15} {'Train':>12} {'Validation':>12}") 
         print("-" * 41) 
         print(f"{'Loss':<15} {self.train_losses[-1]:>12.6f} {self.val_losses[-1]:>12.6f}") 
         print(f"{'PSNR':<15} {self.train_psnrs[-1]:>12.2f} {self.val_psnrs[-1]:>12.2f}") 
         print(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}") 
         print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
+        print(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}")
