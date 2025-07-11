@@ -104,7 +104,8 @@ runner = Trainer(logger=tb_logger,
                     checkpoint_callback,
                     early_stop_callback
                  ],
-                 strategy=DDPStrategy(find_unused_parameters=False),
+                #  strategy=DDPStrategy(find_unused_parameters=False),
+                strategy="auto",
                  log_every_n_steps = 1,                                   # 
                  **config['trainer_params'])
 

@@ -142,7 +142,7 @@ class VAEXperiment(pl.LightningModule):
         
         self.log("train_psnr", avg_train_psnr, prog_bar=True, sync_dist=True)  
         self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)
-        self.log("train_mse", avg_train_mse, prog_bar=True, sync_dist=True)
+        self.log("train_mse", avg_train_mse, prog_bar=True)
         
         # print metrics
         print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}, Train MSE: {avg_train_mse:.6f}")  
@@ -178,7 +178,7 @@ class VAEXperiment(pl.LightningModule):
     
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
         self.log("val_ssim", avg_ssim, prog_bar=True, sync_dist=True) 
-        self.log("val_mse", avg_mse, prog_bar=True, sync_dist=True)
+        self.log("val_mse", avg_mse, prog_bar=True)
     
         print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}, Val MSE: {avg_mse:.6f}") 
     
@@ -195,7 +195,7 @@ class VAEXperiment(pl.LightningModule):
         plt.legend() 
         plt.title("Training and Validation Loss") 
         plt.savefig(os.path.join(self.logger.log_dir, "loss_curve.png")) 
-        plt.show() 
+        plt.close() 
     
         # training & validation psnr, ssim plot 
         fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
@@ -221,10 +221,10 @@ class VAEXperiment(pl.LightningModule):
         plt.figure()
         plt.plot(self.train_mses, label="Train MSE")
         plt.plot(self.val_mses, label="Validation MSE")
-        plt.axhline(0, color='grey', linestyle='--', label='Ideal MSE=0')
+        plt.axhline(0, color='grey', linestyle='--', label='Reference: MSE=0')
         plt.xlabel("Epoch")
         plt.ylabel("MSE")
         plt.legend()
         plt.title("Pixel Level MSE Comparison PLot")
         plt.savefig(os.path.join(self.logger.log_dir, "mse_curve.png"))
-        plt.show()
+        plt.close()

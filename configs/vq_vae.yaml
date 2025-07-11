@@ -17,7 +17,7 @@ data_params:
 
 
 exp_params:
-  LR: 0.0015                             # adjust learning rate
+  LR: 0.0018                             # adjust learning rate
   weight_decay: 0.0
   scheduler_gamma: 0.995
   kld_weight: 0.00025
@@ -26,7 +26,7 @@ exp_params:
 trainer_params:
   accelerator: gpu
   devices: 1 
-  max_epochs: 50                      # adjust epochs
+  max_epochs: 300                      # adjust epochs
   gradient_clip_val: 1.0
 
 logging_params:
