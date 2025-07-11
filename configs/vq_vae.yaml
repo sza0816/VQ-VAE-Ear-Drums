@@ -26,7 +26,7 @@ exp_params:
 trainer_params:
   accelerator: gpu
   devices: 1 
-  max_epochs: 300                      # adjust epochs
+  max_epochs: 50                      # adjust epochs
   gradient_clip_val: 1.0
 
 logging_params:

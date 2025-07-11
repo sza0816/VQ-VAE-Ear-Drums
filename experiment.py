@@ -28,13 +28,17 @@ class VAEXperiment(pl.LightningModule):
         self.psnr = PeakSignalNoiseRatio() 
         self.ssim = StructuralSimilarityIndexMeasure() 
  
-        self.train_psnrs=[]
-        self.train_ssims=[]
+        self.train_psnrs=[]              # train psnr
+        self.train_ssims=[]              # train ssim
 
-        self.val_psnrs = [] 
-        self.val_ssims = [] 
+        self.val_psnrs = []              # validation psnr
+        self.val_ssims = []              # validation ssim
     
-        self.validation_recons = [] 
+        self.validation_recons = []
+
+        self.train_mses = []             # MSE
+        self.val_mses = []
+        self.mse_loss_fn = torch.nn.MSELoss()
  
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
@@ -110,11 +114,14 @@ class VAEXperiment(pl.LightningModule):
         self.train_losses.append(avg_loss.item()) 
         self.training_step_outputs.clear()
 
-        # calculate training psnr & ssim
+        # training psnr & ssim
         all_train_psnr = [] 
         all_train_ssim = [] 
         
         train_loader = self.trainer.datamodule.train_dataloader()         # run train loader after this epoch
+
+        # training mse
+        all_train_mse = []
  
         for real_img, labels in train_loader: 
             real_img = real_img.to(self.curr_device) 
@@ -126,17 +133,24 @@ class VAEXperiment(pl.LightningModule):
         
             all_train_psnr.append(self.psnr(recons, real_img)) 
             all_train_ssim.append(self.ssim(recons, real_img)) 
+            all_train_mse.append(self.mse_loss_fn(recons, real_img))
  
+        # avg metric values of each batch
         avg_train_psnr = torch.stack(all_train_psnr).mean() 
         avg_train_ssim = torch.stack(all_train_ssim).mean() 
+        avg_train_mse = torch.stack(all_train_mse).mean()
         
         self.log("train_psnr", avg_train_psnr, prog_bar=True, sync_dist=True)  
-        self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)  
+        self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)
+        self.log("train_mse", avg_train_mse, prog_bar=True, sync_dist=True)
         
-        print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}")  
+        # print metrics
+        print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}, Train MSE: {avg_train_mse:.6f}")  
         
+        # append metrics to list
         self.train_psnrs.append(avg_train_psnr.item()) 
         self.train_ssims.append(avg_train_ssim.item()) 
+        self.train_mses.append(avg_train_mse.item())
  
     def on_validation_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
@@ -145,23 +159,28 @@ class VAEXperiment(pl.LightningModule):
         self.val_losses.append(avg_loss.item()) 
         self.validation_step_outputs.clear() 
 
-        # calculate PSNR, SSIM 
+        # PSNR, SSIM, MSE
         all_psnr = [] 
         all_ssim = [] 
+        all_mse = []
         for real, recon in self.validation_recons: 
             all_psnr.append(self.psnr(recon, real)) 
             all_ssim.append(self.ssim(recon, real)) 
+            all_mse.append(self.mse_loss_fn(recon, real))
     
         avg_psnr = torch.stack(all_psnr).mean() 
-        avg_ssim = torch.stack(all_ssim).mean() 
+        avg_ssim = torch.stack(all_ssim).mean()
+        avg_mse = torch.stack(all_mse).mean()
  
         self.val_psnrs.append(avg_psnr.item()) 
         self.val_ssims.append(avg_ssim.item()) 
+        self.val_mses.append(avg_mse.item())
     
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
         self.log("val_ssim", avg_ssim, prog_bar=True, sync_dist=True) 
+        self.log("val_mse", avg_mse, prog_bar=True, sync_dist=True)
     
-        print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}") 
+        print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}, Val MSE: {avg_mse:.6f}") 
     
         self.validation_recons.clear()
     
@@ -198,5 +217,14 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "val_metrics.png")) 
         plt.close() 
 
- 
-    
+        # train, validation, original mse comparison plot
+        plt.figure()
+        plt.plot(self.train_mses, label="Train MSE")
+        plt.plot(self.val_mses, label="Validation MSE")
+        plt.axhline(0, color='grey', linestyle='--', label='Ideal MSE=0')
+        plt.xlabel("Epoch")
+        plt.ylabel("MSE")
+        plt.legend()
+        plt.title("Pixel Level MSE Comparison PLot")
+        plt.savefig(os.path.join(self.logger.log_dir, "mse_curve.png"))
+        plt.show()
