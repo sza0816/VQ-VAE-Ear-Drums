@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
+from torchmetrics.functional.image import multiscale_structural_similarity_index_measure as msssim_fn
 from pytorch_lightning.utilities.rank_zero import rank_zero_only 
 
 class VAEXperiment(pl.LightningModule): 
@@ -40,8 +41,11 @@ class VAEXperiment(pl.LightningModule):
         self.val_mses = []
         self.mse_loss_fn = torch.nn.MSELoss()
 
-        self.fid_metric = FrechetInceptionDistance(feature = 2048, reset_real_features=False)
+        self.fid_metric = FrechetInceptionDistance(feature = 2048, reset_real_features = False)         # fid
         self.val_fids = []
+
+        self.train_ms_ssims = []                           # ms-ssim
+        self.val_ms_ssims = []
  
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
@@ -125,6 +129,9 @@ class VAEXperiment(pl.LightningModule):
 
         # training mse
         all_train_mse = []
+
+        # training ms-ssim
+        all_train_ms_ssim = []
  
         for real_img, labels in train_loader: 
             real_img = real_img.to(self.curr_device) 
@@ -137,23 +144,33 @@ class VAEXperiment(pl.LightningModule):
             all_train_psnr.append(self.psnr(recons, real_img)) 
             all_train_ssim.append(self.ssim(recons, real_img)) 
             all_train_mse.append(self.mse_loss_fn(recons, real_img))
+            all_train_ms_ssim.append(msssim_fn(
+                preds=recons,
+                target=real_img, 
+                kernel_size=3,
+                betas=(0.4,0.4,0.2),
+                data_range=1.0
+            ))
  
         # avg metric values of each batch
         avg_train_psnr = torch.stack(all_train_psnr).mean() 
         avg_train_ssim = torch.stack(all_train_ssim).mean() 
         avg_train_mse = torch.stack(all_train_mse).mean()
+        avg_train_ms_ssim = torch.stack(all_train_ms_ssim).mean()
         
         self.log("train_psnr", avg_train_psnr, prog_bar=True, sync_dist=True)  
         self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)
         self.log("train_mse", avg_train_mse, prog_bar=True)
+        self.log("train_ms_ssim", avg_train_ms_ssim, prog_bar=True, sync_dist=True)
         
         # print metrics
-        print(f"\n[Epoch {self.current_epoch}] Train PSNR: {avg_train_psnr:.2f}, Train SSIM: {avg_train_ssim:.4f}, Train MSE: {avg_train_mse:.6f}")  
+        print(f"\n[Epoch {self.current_epoch}] \nTrain PSNR: {avg_train_psnr:.2f}, \nTrain SSIM: {avg_train_ssim:.4f}, \nTrain MSE: {avg_train_mse:.6f}, \nTrain MS-SSIM: {avg_train_ms_ssim}")  
         
         # append metrics to list
         self.train_psnrs.append(avg_train_psnr.item()) 
         self.train_ssims.append(avg_train_ssim.item()) 
         self.train_mses.append(avg_train_mse.item())
+        self.train_ms_ssim.append(avg_train_ms_ssim.item())
  
     def on_validation_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
@@ -162,38 +179,53 @@ class VAEXperiment(pl.LightningModule):
         self.val_losses.append(avg_loss.item()) 
         self.validation_step_outputs.clear() 
 
-        # PSNR, SSIM, MSE, FID
+        # PSNR, SSIM, MSE, FID, MS-SSIM
         all_psnr = [] 
         all_ssim = [] 
         all_mse = []
+        all_ms_ssim = []
         for real, recon in self.validation_recons: 
             all_psnr.append(self.psnr(recon, real)) 
             all_ssim.append(self.ssim(recon, real)) 
             all_mse.append(self.mse_loss_fn(recon, real))
 
-            real_255 = (real * 255).clamp(0, 255).to(torch.uint8).to(self.curr_device) 
+            all_ms_ssim.append(msssim_fn(
+                preds=recon, 
+                target=real, 
+                kernel_size=3, 
+                betas=(0.4,0.4,0.2),
+                data_range=1.0
+            ))
+
+            real_255 = (real * 255).clamp(0, 255).to(torch.uint8).to(self.curr_device)          # fid
             recon_255 = (recon * 255).clamp(0, 255).to(torch.uint8).to(self.curr_device)
             self.fid_metric.update(real_255, real=True)
             self.fid_metric.update(recon_255, real=False)
 
+        # average
         avg_psnr = torch.stack(all_psnr).mean() 
         avg_ssim = torch.stack(all_ssim).mean()
         avg_mse = torch.stack(all_mse).mean()
         fid_score = self.fid_metric.compute()
- 
+        avg_ms_ssim = torch.stack(all_ms_ssim).mean()
+
+        # append avg metrics to list
         self.val_psnrs.append(avg_psnr.item()) 
         self.val_ssims.append(avg_ssim.item()) 
         self.val_mses.append(avg_mse.item())
+        self.val_ms_ssims.append(avg_ms_ssim.item())
 
-        self.fid_metric.reset()
+        self.fid_metric.reset()                         # fid append to list
         self.val_fids.append(fid_score.item())
     
+        # log
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
         self.log("val_ssim", avg_ssim, prog_bar=True, sync_dist=True) 
         self.log("val_mse", avg_mse, prog_bar=True)
         self.log("val_fid", fid_score, prog_bar=True, sync_dist=True)
+        self.log("val_ms_ssim", avg_ms_ssim, prog_bar=True, sync_dist=True)
     
-        print(f"\n[Epoch {self.current_epoch}] Val PSNR: {avg_psnr:.2f}, Val SSIM: {avg_ssim:.4f}, Val MSE: {avg_mse:.6f}, Val FID: {fid_score:.2f}") 
+        print(f"\n[Epoch {self.current_epoch}] \nVal PSNR: {avg_psnr:.2f}, \nVal SSIM: {avg_ssim:.4f}, \nVal MSE: {avg_mse:.6f}, \nVal FID: {fid_score:.2f}, \nVal MS-SSIM: {avg_ms_ssim:.4f}") 
     
         self.validation_recons.clear()
     
@@ -210,27 +242,40 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "loss_curve.png")) 
         plt.close() 
     
-        # training & validation psnr, ssim plot 
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
-        axs[0].plot(self.train_psnrs, label="Train PSNR") 
-        axs[0].plot(self.val_psnrs, label="Val PSNR") 
-        axs[0].set_xlabel("Epoch") 
-        axs[0].set_ylabel("PSNR") 
-        axs[0].set_title("PSNR Metrics") 
-        axs[0].legend() 
-
-        axs[1].plot(self.train_ssims, label="Train SSIM") 
-        axs[1].plot(self.val_ssims, label="Val SSIM") 
-        axs[1].set_xlabel("Epoch") 
-        axs[1].set_ylabel("SSIM") 
-        axs[1].set_title("SSIM Metrics") 
-        axs[1].legend() 
-
-        plt.tight_layout() 
-        plt.savefig(os.path.join(self.logger.log_dir, "val_metrics.png")) 
+        # psnr 
+        plt.figure() 
+        plt.plot(self.train_psnrs, label="Train PSNR") 
+        plt.plot(self.val_psnrs, label="Val PSNR") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("PSNR") 
+        plt.title("PSNR Metrics") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "psnr_curve.png")) 
         plt.close() 
 
-        # train, validation, original mse comparison plot
+        # ssim 
+        plt.figure() 
+        plt.plot(self.train_ssims, label="Train SSIM") 
+        plt.plot(self.val_ssims, label="Val SSIM") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("SSIM") 
+        plt.title("SSIM Metrics") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "ssim_curve.png")) 
+        plt.close() 
+
+        # ms-ssim 
+        plt.figure() 
+        plt.plot(self.train_ms_ssims, label="Train MS-SSIM") 
+        plt.plot(self.val_ms_ssims, label="Val MS-SSIM") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("MS-SSIM") 
+        plt.title("MS-SSIM Metrics") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "ms_ssim_curve.png")) 
+        plt.close() 
+
+        # mse
         plt.figure()
         plt.plot(self.train_mses, label="Train MSE")
         plt.plot(self.val_mses, label="Validation MSE")
@@ -268,3 +313,4 @@ class VAEXperiment(pl.LightningModule):
         print(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}") 
         print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
         print(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}")
+        print(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}") 
