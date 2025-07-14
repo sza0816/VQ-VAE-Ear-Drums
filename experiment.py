@@ -170,7 +170,7 @@ class VAEXperiment(pl.LightningModule):
         self.train_psnrs.append(avg_train_psnr.item()) 
         self.train_ssims.append(avg_train_ssim.item()) 
         self.train_mses.append(avg_train_mse.item())
-        self.train_ms_ssim.append(avg_train_ms_ssim.item())
+        self.train_ms_ssims.append(avg_train_ms_ssim.item())
  
     def on_validation_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
