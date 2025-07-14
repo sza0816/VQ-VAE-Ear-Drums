@@ -47,6 +47,8 @@ class VAEXperiment(pl.LightningModule):
         self.train_ms_ssims = []                           # ms-ssim
         self.val_ms_ssims = []
  
+        self.val_nlpds = []                              # nlpd
+
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
 
@@ -72,7 +74,7 @@ class VAEXperiment(pl.LightningModule):
         self.log_dict({f"val_{key}": val.item() for key, val in val_loss.items()}, sync_dist=True) 
  
         recon = results[0].detach().cpu() 
-        self.validation_recons.append((real_img.cpu(), recon)) 
+        self.validation_recons.append((real_img, recon)) 
  
         return val_loss['loss'] 
 
@@ -127,10 +129,7 @@ class VAEXperiment(pl.LightningModule):
         
         train_loader = self.trainer.datamodule.train_dataloader()         # run train loader after this epoch
 
-        # training mse
         all_train_mse = []
-
-        # training ms-ssim
         all_train_ms_ssim = []
  
         for real_img, labels in train_loader: 
@@ -164,7 +163,13 @@ class VAEXperiment(pl.LightningModule):
         self.log("train_ms_ssim", avg_train_ms_ssim, prog_bar=True, sync_dist=True)
         
         # print metrics
-        print(f"\n[Epoch {self.current_epoch}] \nTrain PSNR: {avg_train_psnr:.2f}, \nTrain SSIM: {avg_train_ssim:.4f}, \nTrain MSE: {avg_train_mse:.6f}, \nTrain MS-SSIM: {avg_train_ms_ssim}")  
+        print(
+            f"\n[Epoch {self.current_epoch}]"
+            f"\nTrain PSNR: {avg_train_psnr:.2f},"
+            f"\nTrain SSIM: {avg_train_ssim:.4f},"
+            f"\nTrain MSE: {avg_train_mse:.6f}, "
+            f"\nTrain MS-SSIM: {avg_train_ms_ssim}"
+            )  
         
         # append metrics to list
         self.train_psnrs.append(avg_train_psnr.item()) 
@@ -179,16 +184,20 @@ class VAEXperiment(pl.LightningModule):
         self.val_losses.append(avg_loss.item()) 
         self.validation_step_outputs.clear() 
 
-        # PSNR, SSIM, MSE, FID, MS-SSIM
+        # PSNR, SSIM, MSE, FID, MS-SSIM, NLPD
         all_psnr = [] 
         all_ssim = [] 
         all_mse = []
         all_ms_ssim = []
+        all_nlpd = []
+
         for real, recon in self.validation_recons: 
+            real = real.to(self.curr_device)
+            recon = recon.to(self.curr_device)
+
             all_psnr.append(self.psnr(recon, real)) 
             all_ssim.append(self.ssim(recon, real)) 
             all_mse.append(self.mse_loss_fn(recon, real))
-
             all_ms_ssim.append(msssim_fn(
                 preds=recon, 
                 target=real, 
@@ -202,12 +211,21 @@ class VAEXperiment(pl.LightningModule):
             self.fid_metric.update(real_255, real=True)
             self.fid_metric.update(recon_255, real=False)
 
+            sigma2_tensor = torch.tensor(1.0, device=self.curr_device)
+            const_term = 0.5 * torch.log(2 * math.pi * sigma2_tensor)
+
+            pixel_mse = (real-recon)**2                                                        # nlpd
+            nlpd_map = const_term + pixel_mse/(2*sigma2_tensor)
+            nlpd_sample = nlpd_map.mean()
+            all_nlpd.append(nlpd_sample.cpu())
+
         # average
         avg_psnr = torch.stack(all_psnr).mean() 
         avg_ssim = torch.stack(all_ssim).mean()
         avg_mse = torch.stack(all_mse).mean()
         fid_score = self.fid_metric.compute()
         avg_ms_ssim = torch.stack(all_ms_ssim).mean()
+        avg_nlpd = torch.stack(all_nlpd).mean()
 
         # append avg metrics to list
         self.val_psnrs.append(avg_psnr.item()) 
@@ -217,6 +235,8 @@ class VAEXperiment(pl.LightningModule):
 
         self.fid_metric.reset()                         # fid append to list
         self.val_fids.append(fid_score.item())
+
+        self.val_nlpds.append(avg_nlpd.item())
     
         # log
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
@@ -224,8 +244,16 @@ class VAEXperiment(pl.LightningModule):
         self.log("val_mse", avg_mse, prog_bar=True)
         self.log("val_fid", fid_score, prog_bar=True, sync_dist=True)
         self.log("val_ms_ssim", avg_ms_ssim, prog_bar=True, sync_dist=True)
-    
-        print(f"\n[Epoch {self.current_epoch}] \nVal PSNR: {avg_psnr:.2f}, \nVal SSIM: {avg_ssim:.4f}, \nVal MSE: {avg_mse:.6f}, \nVal FID: {fid_score:.2f}, \nVal MS-SSIM: {avg_ms_ssim:.4f}") 
+        self.log("val_nlpd", avg_nlpd, prog_bar=True, sync_dist=True)
+
+        print(
+            f"\n[Epoch {self.current_epoch}]"
+            f"\nVal PSNR: {avg_psnr:.2f},"
+            f"\nVal SSIM: {avg_ssim:.4f},"
+            f"\nVal MSE: {avg_mse:.6f},"
+            f"\nVal FID: {fid_score:.2f},"
+            f"\nVal MS-SSIM: {avg_ms_ssim:.4f},"
+            f"\nVal NLPD: {avg_nlpd:.4f}") 
     
         self.validation_recons.clear()
     
@@ -297,6 +325,16 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "fid_curve.png")) 
         plt.show() 
 
+        # validation nlpd
+        plt.figure() 
+        plt.plot(self.val_nlpds, label="Val NLPD") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("NLPD") 
+        plt.title("Validation NLPD") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "nlpd_curve.png")) 
+        plt.close() 
+
 
 
 
@@ -313,4 +351,5 @@ class VAEXperiment(pl.LightningModule):
         print(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}") 
         print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
         print(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}")
-        print(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}") 
+        print(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}")
+        print(f"{'NLPD':<15} {'-':>12} {self.val_nlpds[-1]:>12.4f}") 
