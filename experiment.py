@@ -272,6 +272,7 @@ class VAEXperiment(pl.LightningModule):
     
     @rank_zero_only 
     def on_train_end(self): 
+        
         # training validation loss plot 
         plt.figure() 
         plt.plot(self.train_losses, label="Train Loss") 
@@ -282,84 +283,69 @@ class VAEXperiment(pl.LightningModule):
         plt.title("Training and Validation Loss") 
         plt.savefig(os.path.join(self.logger.log_dir, "loss_curve.png")) 
         plt.close() 
-    
-        # psnr 
-        plt.figure() 
-        plt.plot(self.train_psnrs, label="Train PSNR") 
-        plt.plot(self.val_psnrs, label="Val PSNR") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("PSNR") 
-        plt.title("PSNR Metrics") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "psnr_curve.png")) 
+
+        fig, axs = plt.subplots(1, 3, figsize=(18, 5)) 
+
+        metrics = [ 
+            ("PSNR", self.train_psnrs, self.val_psnrs), 
+            ("SSIM", self.train_ssims, self.val_ssims), 
+            ("MS-SSIM", self.train_ms_ssims, self.val_ms_ssims)
+        ] 
+        for ax, (metric_name, train_values, val_values) in zip(axs, metrics): 
+            ax.plot(train_values, label=f"Train {metric_name}", linestyle='-') 
+            ax.plot(val_values, label=f"Val {metric_name}", linestyle='--') 
+            ax.set_xlabel("Epoch") 
+            ax.set_ylabel(metric_name) 
+            ax.set_title(f"{metric_name} Metrics") 
+            ax.legend() 
+            ax.grid(True) 
+        plt.tight_layout() 
+        plt.savefig(os.path.join(self.logger.log_dir, "psnr_ssim_msssim_curves.png")) 
         plt.close() 
 
-        # ssim 
-        plt.figure() 
-        plt.plot(self.train_ssims, label="Train SSIM") 
-        plt.plot(self.val_ssims, label="Val SSIM") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("SSIM") 
-        plt.title("SSIM Metrics") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "ssim_curve.png")) 
+        # mse, nlpd
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
+
+        axs[0].plot(self.train_mses, label="Train MSE") 
+        axs[0].plot(self.val_mses, label="Validation MSE") 
+        axs[0].axhline(0, color='grey', linestyle='--', label='Reference: MSE=0') 
+        axs[0].set_xlabel("Epoch") 
+        axs[0].set_ylabel("MSE") 
+        axs[0].set_title("Pixel Level MSE") 
+        axs[0].legend()
+        axs[0].grid(True) 
+
+        axs[1].plot(self.val_nlpds, label="Val NLPD") 
+        axs[1].set_xlabel("Epoch") 
+        axs[1].set_ylabel("NLPD") 
+        axs[1].set_title("Validation NLPD") 
+        axs[1].legend()
+        axs[1].grid(True) 
+
+        plt.tight_layout() 
+        plt.savefig(os.path.join(self.logger.log_dir, "mse_nlpd_curve.png")) 
         plt.close() 
 
-        # ms-ssim 
-        plt.figure() 
-        plt.plot(self.train_ms_ssims, label="Train MS-SSIM") 
-        plt.plot(self.val_ms_ssims, label="Val MS-SSIM") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("MS-SSIM") 
-        plt.title("MS-SSIM Metrics") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "ms_ssim_curve.png")) 
-        plt.close() 
+        # fid, lpips
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
 
-        # mse
-        plt.figure()
-        plt.plot(self.train_mses, label="Train MSE")
-        plt.plot(self.val_mses, label="Validation MSE")
-        plt.axhline(0, color='grey', linestyle='--', label='Reference: MSE=0')
-        plt.xlabel("Epoch")
-        plt.ylabel("MSE")
-        plt.legend()
-        plt.title("Pixel Level MSE Comparison PLot")
-        plt.savefig(os.path.join(self.logger.log_dir, "mse_curve.png"))
+        axs[0].plot(self.val_fids, label="Val FID") 
+        axs[0].set_xlabel("Epoch") 
+        axs[0].set_ylabel("FID") 
+        axs[0].set_title("Validation FID") 
+        axs[0].legend() 
+        axs[0].grid(True) 
+
+        axs[1].plot(self.val_lpips, label="Val LPIPS") 
+        axs[1].set_xlabel("Epoch") 
+        axs[1].set_ylabel("LPIPS") 
+        axs[1].set_title("Validation LPIPS") 
+        axs[1].legend() 
+        axs[1].grid(True) 
+
+        plt.tight_layout() 
+        plt.savefig(os.path.join(self.logger.log_dir, "fid_lpips_curve.png")) 
         plt.close()
-
-        # validation FID
-        plt.figure() 
-        plt.plot(self.val_fids, label="Val FID") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("FID") 
-        plt.title("Validation FID") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "fid_curve.png")) 
-        plt.show() 
-
-        # validation nlpd
-        plt.figure() 
-        plt.plot(self.val_nlpds, label="Val NLPD") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("NLPD") 
-        plt.title("Validation NLPD") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "nlpd_curve.png")) 
-        plt.close() 
-
-        # validation lpips
-        plt.figure() 
-        plt.plot(self.val_lpips, label="Val LPIPS") 
-        plt.xlabel("Epoch") 
-        plt.ylabel("LPIPS") 
-        plt.title("Validation LPIPS") 
-        plt.legend() 
-        plt.savefig(os.path.join(self.logger.log_dir, "lpips_curve.png")) 
-        plt.close() 
-
-
-
 
 
 
