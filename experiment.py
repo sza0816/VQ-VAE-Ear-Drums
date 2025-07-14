@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchmetrics.functional.image import multiscale_structural_similarity_index_measure as msssim_fn
-from pytorch_lightning.utilities.rank_zero import rank_zero_only 
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
+import lpips
 
 class VAEXperiment(pl.LightningModule): 
     def __init__(self, vae_model: BaseVAE, params: dict) -> None: 
@@ -48,6 +49,9 @@ class VAEXperiment(pl.LightningModule):
         self.val_ms_ssims = []
  
         self.val_nlpds = []                              # nlpd
+
+        self.lpips_metrics = lpips.LPIPS(net='alex').to(self.curr_device if self.curr_device else 'cuda')       # lpips
+        self.val_lpips = []
 
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
@@ -190,6 +194,7 @@ class VAEXperiment(pl.LightningModule):
         all_mse = []
         all_ms_ssim = []
         all_nlpd = []
+        all_lpips = []
 
         for real, recon in self.validation_recons: 
             real = real.to(self.curr_device)
@@ -219,6 +224,10 @@ class VAEXperiment(pl.LightningModule):
             nlpd_sample = nlpd_map.mean()
             all_nlpd.append(nlpd_sample.cpu())
 
+            with torch.no_grad():
+                lpips_value = self.lpips_metrics(recon, real).mean()
+            all_lpips.append(lpips_value)
+
         # average
         avg_psnr = torch.stack(all_psnr).mean() 
         avg_ssim = torch.stack(all_ssim).mean()
@@ -226,6 +235,7 @@ class VAEXperiment(pl.LightningModule):
         fid_score = self.fid_metric.compute()
         avg_ms_ssim = torch.stack(all_ms_ssim).mean()
         avg_nlpd = torch.stack(all_nlpd).mean()
+        avg_lpips = torch.stack(all_lpips).mean()
 
         # append avg metrics to list
         self.val_psnrs.append(avg_psnr.item()) 
@@ -237,6 +247,7 @@ class VAEXperiment(pl.LightningModule):
         self.val_fids.append(fid_score.item())
 
         self.val_nlpds.append(avg_nlpd.item())
+        self.val_lpips.append(avg_lpips.item())
     
         # log
         self.log("val_psnr", avg_psnr, prog_bar=True, sync_dist=True) 
@@ -245,6 +256,7 @@ class VAEXperiment(pl.LightningModule):
         self.log("val_fid", fid_score, prog_bar=True, sync_dist=True)
         self.log("val_ms_ssim", avg_ms_ssim, prog_bar=True, sync_dist=True)
         self.log("val_nlpd", avg_nlpd, prog_bar=True, sync_dist=True)
+        self.log("val_lpips", avg_lpips, prog_bar=True, sync_dist=True)
 
         print(
             f"\n[Epoch {self.current_epoch}]"
@@ -253,7 +265,8 @@ class VAEXperiment(pl.LightningModule):
             f"\nVal MSE: {avg_mse:.6f},"
             f"\nVal FID: {fid_score:.2f},"
             f"\nVal MS-SSIM: {avg_ms_ssim:.4f},"
-            f"\nVal NLPD: {avg_nlpd:.4f}") 
+            f"\nVal NLPD: {avg_nlpd:.4f},"
+            f"\nVal LPIPS: {avg_lpips:.4f}") 
     
         self.validation_recons.clear()
     
@@ -335,7 +348,15 @@ class VAEXperiment(pl.LightningModule):
         plt.savefig(os.path.join(self.logger.log_dir, "nlpd_curve.png")) 
         plt.close() 
 
-
+        # validation lpips
+        plt.figure() 
+        plt.plot(self.val_lpips, label="Val LPIPS") 
+        plt.xlabel("Epoch") 
+        plt.ylabel("LPIPS") 
+        plt.title("Validation LPIPS") 
+        plt.legend() 
+        plt.savefig(os.path.join(self.logger.log_dir, "lpips_curve.png")) 
+        plt.close() 
 
 
 
@@ -352,4 +373,5 @@ class VAEXperiment(pl.LightningModule):
         print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
         print(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}")
         print(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}")
-        print(f"{'NLPD':<15} {'-':>12} {self.val_nlpds[-1]:>12.4f}") 
+        print(f"{'NLPD':<15} {'-':>12} {self.val_nlpds[-1]:>12.4f}")
+        print(f"{'LPIPS':<15} {'-':>12} {self.val_lpips[-1]:>12.4f}") 
