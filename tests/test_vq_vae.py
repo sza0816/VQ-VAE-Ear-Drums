@@ -10,8 +10,8 @@ class TestVQVAE(unittest.TestCase):                        #
         # self.model2 = VAE(3, 10)
         self.model = VQVAE(3, 64, 512)
 
-    def test_summary(self):
-        print(summary(self.model, (3, 64, 64), device='cpu'))
+    # def test_summary(self):
+    #     print(summary(self.model, (3, 64, 64), device='cpu'))
         # print(summary(self.model2, (3, 64, 64), device='cpu'))
 
     def test_forward(self):
@@ -28,10 +28,10 @@ class TestVQVAE(unittest.TestCase):                        #
         loss = self.model.loss_function(*result, M_N = 0.005)
         print(loss)
 
-    def test_sample(self):
-        self.model.cuda()
-        y = self.model.sample(8, 'cuda')
-        print(y.shape)
+    # def test_sample(self):
+    #     self.model.cuda()
+    #     y = self.model.sample(8, 'cuda')
+    #     print(y.shape)
 
     def test_generate(self):
         x = torch.randn(16, 3, 64, 64)

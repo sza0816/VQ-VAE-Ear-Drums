@@ -98,17 +98,17 @@ class VAEXperiment(pl.LightningModule):
                         normalize=True, 
                         nrow=8) 
 
-        try:                                                                             # image sampling, not yet implemented
-            samples = self.model.sample(144, self.curr_device, labels=test_label) 
-            vutils.save_image(samples.cpu().data, 
-                            os.path.join(self.logger.log_dir, 
-                                        "Samples",
-                                        f"{self.logger.name}_Epoch_{self.current_epoch}.png"), 
-                                        normalize=True, 
-                                        nrow=12) 
-        except Exception as e: 
-            # print(f"\n[Warning] Sampling failed: {e}\n")           ### print sample err msg
-            pass
+        # try:                                                                             # image sampling, not implemented
+        #     samples = self.model.sample(144, self.curr_device, labels=test_label) 
+        #         vutils.save_image(samples.cpu().data, 
+        #                         os.path.join(self.logger.log_dir, 
+        #                                     "Samples",
+        #                                     f"{self.logger.name}_Epoch_{self.current_epoch}.png"), 
+        #                                     normalize=True, 
+        #                                     nrow=12) 
+        # except Exception as e: 
+        #     # print(f"\n[Warning] Sampling failed: {e}\n")
+        #     pass
 
     def configure_optimizers(self): 
         optimizer = optim.Adam(self.model.parameters(), lr=self.params['LR'], weight_decay=self.params['weight_decay']) 

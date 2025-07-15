@@ -4,7 +4,7 @@ model_params:
   embedding_dim: 64           # 
   num_embeddings: 256
   img_size: 64
-  beta: 0.25                  # take beta back to 0.25 or 0.5(not tested)
+  beta: 0.25                  #
 
 data_params:
   data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
@@ -34,8 +34,3 @@ logging_params:
   name: 'Autoscope_VQVAE'
 
 # Note: 
-# increase capacity ?
-# lower lr 0.0015, 0.001
-# how to look for params ?
-# how to test output ?  
-# how to know when it is overfitted ? - compare training vs validation metrics

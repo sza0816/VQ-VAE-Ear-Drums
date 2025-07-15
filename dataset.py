@@ -82,15 +82,6 @@ class VAEDataset(LightningDataModule):                        # imported to run.
         self.pin_memory = pin_memory
 
     def setup(self, stage: Optional[str] = None) -> None:
-        # train_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-        #                                       transforms.CenterCrop(148),
-        #                                       transforms.Resize(self.patch_size),
-        #                                       transforms.ToTensor(),])                   # can add normalize later
-        
-        # val_transforms = transforms.Compose([transforms.RandomHorizontalFlip(),
-        #                                     transforms.CenterCrop(148),
-        #                                     transforms.Resize(self.patch_size),
-        #                                     transforms.ToTensor(),])
         train_transforms = transforms.Compose([ 
                                         transforms.RandomResizedCrop(64, scale=(0.8, 1.0), ratio=(0.9, 1.1)), 
                                         transforms.RandomRotation(degrees=(-10, 10)), 
