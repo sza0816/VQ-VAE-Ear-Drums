@@ -59,7 +59,7 @@ parser.add_argument('--config',  '-c',
                     default='configs/vae.yaml')
 
 args = parser.parse_args()                      # choose config file (vq_vae.yaml)
-with open(args.filename, 'r') as file:          # problem: can't open file
+with open(args.filename, 'r') as file:
     try:
         config = yaml.safe_load(file)
     except yaml.YAMLError as exc:

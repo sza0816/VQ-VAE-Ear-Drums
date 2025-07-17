@@ -12,7 +12,8 @@ class VectorQuantizer(nn.Module):
     def __init__(self,
                  num_embeddings: int,
                  embedding_dim: int,
-                 beta: float = 0.25):
+                 beta: float = 0.25, 
+                 alpha_q: float = 0.5):
         super(VectorQuantizer, self).__init__()
         self.K = num_embeddings
         self.D = embedding_dim
@@ -20,6 +21,8 @@ class VectorQuantizer(nn.Module):
 
         self.embedding = nn.Embedding(self.K, self.D)
         self.embedding.weight.data.uniform_(-1 / self.K, 1 / self.K)
+
+        self.alpha = alpha_q
 
     def forward(self, latents: Tensor) -> Tensor:
         latents = latents.permute(0, 2, 3, 1).contiguous()  # [B x D x H x W] -> [B x H x W x D]
@@ -50,7 +53,9 @@ class VectorQuantizer(nn.Module):
         vq_loss = commitment_loss * self.beta + embedding_loss
 
         # Add the residue back to the latents
-        quantized_latents = latents + (quantized_latents - latents).detach()
+        # quantized_latents = latents + (quantized_latents - latents).detach()         # original
+        # quantized_latents = latents + quantized_latents - latents.detach()             # method 1
+        quantized_latents = latents + self.alpha * ( quantized_latents- latents).detach()  # method 2
 
         return quantized_latents.permute(0, 3, 1, 2).contiguous(), vq_loss  # [B x D x H x W]
 
