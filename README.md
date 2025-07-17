@@ -31,7 +31,7 @@ The aim of this project is to reproduce VQ-VAE implemented by AntixK to reconstr
 ### Installation
 ```
 $ git clone git@github.com:sza0816/VQ-VAE-Ear-Drums.git
-$ cd PyTorch-VAE
+$ cd Ear-Drum-VQVAE
 $ pip install -r requirements.txt        # --no-user if in virtual env
 ```
 

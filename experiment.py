@@ -20,7 +20,8 @@ class VAEXperiment(pl.LightningModule):
 
         self.model = vae_model 
         self.params = params 
-        self.curr_device = None 
+        self.curr_device = None
+        self.register_buffer("codebook_usage", torch.zeros(self.model.num_embeddings, dtype=torch.long))
     
         self.training_step_outputs = [] 
         self.validation_step_outputs = [] 
@@ -56,12 +57,17 @@ class VAEXperiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor: 
         return self.model(input, **kwargs) 
 
-    def training_step(self, batch, batch_idx):            # 
+    def training_step(self, batch, batch_idx):                                # 
         real_img, labels = batch 
         self.curr_device = real_img.device 
  
-        results = self.forward(real_img, labels=labels) 
-        train_loss = self.model.loss_function(*results, M_N=self.params['kld_weight'], batch_idx=batch_idx) 
+        # results = self.forward(real_img, labels=labels) 
+        # train_loss = self.model.loss_function(*results, M_N=self.params['kld_weight'], batch_idx=batch_idx) 
+        recons, input_img, vq_loss, encoding_inds = self.forward(real_img, labels=labels)  
+        # recons, input_img, vq_loss, encoding_inds = results 
+        flat_inds = encoding_inds.flatten()  
+        self.codebook_usage.scatter_add_(0, flat_inds, torch.ones_like(flat_inds, dtype=self.codebook_usage.dtype)) 
+        train_loss = self.model.loss_function(recons, input_img, vq_loss, M_N=self.params['kld_weight'], batch_idx=batch_idx) 
 
         self.training_step_outputs.append(train_loss['loss']) 
         self.log_dict({key: val.item() for key, val in train_loss.items()}, sync_dist=True) 

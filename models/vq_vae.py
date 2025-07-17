@@ -35,7 +35,7 @@ class VectorQuantizer(nn.Module):
                2 * torch.matmul(flat_latents, self.embedding.weight.t())  # [BHW x K]
 
         # Get the encoding that has the min distance
-        encoding_inds = torch.argmin(dist, dim=1).unsqueeze(1)  # [BHW, 1]
+        encoding_inds = torch.argmin(dist, dim=1).unsqueeze(1)  # [BHW, 1]              # indices ?
 
         # Convert to one-hot encodings
         device = latents.device
@@ -57,7 +57,11 @@ class VectorQuantizer(nn.Module):
         # quantized_latents = latents + quantized_latents - latents.detach()             # method 1
         quantized_latents = latents + self.alpha * ( quantized_latents- latents).detach()  # method 2
 
-        return quantized_latents.permute(0, 3, 1, 2).contiguous(), vq_loss  # [B x D x H x W]
+        return (  
+            quantized_latents.permute(0, 3, 1, 2).contiguous(), # [B x D x H x W]
+            vq_loss, 
+            encoding_inds.view(latents_shape[0], latents_shape[1], latents_shape[2])
+          )
 
 class ResidualLayer(nn.Module):
 
@@ -193,8 +197,8 @@ class VQVAE(BaseVAE):
 
     def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
         encoding = self.encode(input)[0]
-        quantized_inputs, vq_loss = self.vq_layer(encoding)
-        return [self.decode(quantized_inputs), input, vq_loss]
+        quantized_inputs, vq_loss, encoding_inds = self.vq_layer(encoding)
+        return [self.decode(quantized_inputs), input, vq_loss, encoding_inds]
 
     def loss_function(self,
                       *args,
