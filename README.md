@@ -18,15 +18,15 @@
 
 **Update 7/3/2025:** Adjusted PyTorch Lightning import commands to support 2.5.2 version
 
-**Update 22/12/2021:** Added support for PyTorch Lightning 1.5.6 version and cleaned up the code.
+This project reproduces the VQ-VAE implementation by AntixK, adapted to reconstruct video frames of eardrums as part of a larger medical imaging project. 
 
-The aim of this project is to reproduce VQ-VAE implemented by AntixK to reconstruct video frames of ear drums as a part of a bigger project. A "job.slurm" file was added to run VQ-VAE on ear drum datasets that are not included in this repository. 
+Note: the eardrum datasets are not included in this repository due to privacy constraints. A job.slurm file is provided to run the model on an HPC cluster. 
 
 ### Requirements
 - Python >= 3.5
 - PyTorch >= 1.3
-- Pytorch Lightning >= 0.6.0 ([GitHub Repo](https://github.com/PyTorchLightning/pytorch-lightning/tree/deb1581e26b7547baf876b7a94361e60bb200d32))
-- CUDA enabled computing device
+- Pytorch Lightning >= 0.6.0 (tested up to 2.5.2)
+- All experiments were run on a CUDA-enabled GPU
 
 ### Installation
 ```
@@ -38,9 +38,12 @@ $ pip install -r requirements.txt        # --no-user if in virtual env
 ### Usage
 ```
 $ conda activate <env>
-$ cd PyTorch-VAE           # if needed
+$ cd Ear-Drum-VQVAE           # if needed
 $ sbatch job.slurm
 # squeue -u <username>     # check job status
+
+# or run locally
+$python run.py --conf configs/vq_vae.yaml
 ```
 **Config file template - See folder "configs"**
 
@@ -110,4 +113,6 @@ $ tensorboard --logdir .
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/AntixK/PyTorch-VAE}}
 }
+
+$ This repository adapts AntixK's code for a specific medical imaging use case.
 ```

@@ -13,6 +13,7 @@ from torchmetrics.image.fid import FrechetInceptionDistance
 from torchmetrics.functional.image import multiscale_structural_similarity_index_measure as msssim_fn
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 import lpips
+import numpy as np 
 
 class VAEXperiment(pl.LightningModule): 
     def __init__(self, vae_model: BaseVAE, params: dict) -> None: 
@@ -72,7 +73,7 @@ class VAEXperiment(pl.LightningModule):
         self.training_step_outputs.append(train_loss['loss']) 
         self.log_dict({key: val.item() for key, val in train_loss.items()}, sync_dist=True) 
         return train_loss['loss']
-    
+
     def validation_step(self, batch, batch_idx): 
         real_img, labels = batch 
         self.curr_device = real_img.device 
@@ -352,6 +353,29 @@ class VAEXperiment(pl.LightningModule):
         plt.tight_layout() 
         plt.savefig(os.path.join(self.logger.log_dir, "fid_lpips_curve.png")) 
         plt.close()
+
+        # plot codebook usage
+        usage_np = self.codebook_usage.cpu().numpy() 
+        sorted_usage = np.sort(usage_np)
+        cdf = np.cumsum(sorted_usage) / np.sum(sorted_usage) 
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
+
+        axs[0].plot(range(1, len(cdf) + 1), cdf) 
+        axs[0].set_xlabel("Codebook Entry (sorted)") 
+        axs[0].set_ylabel("CDF") 
+        axs[0].set_title("Codebook Usage CDF") 
+        axs[0].grid(True) 
+
+        axs[1].bar(range(len(usage_np)), usage_np)
+        axs[1].set_xlabel("Codebook Entry Index")
+        axs[1].set_ylabel("Usage Count")
+        axs[1].set_title("Codebook Usage Histogram")
+        axs[1].grid(True)
+
+        plt.tight_layout() 
+        plt.savefig(os.path.join(self.logger.log_dir, "codebook_usage_cdf.png"))
+        plt.close() 
 
 
 

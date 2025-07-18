@@ -84,7 +84,7 @@ data.setup()
 early_stop_callback = VerboseEarlyStopping(
     # monitor='val_psnr',                       # early stop monitor visual performance
     monitor='val_ms_ssim',
-    patience=30,
+    patience=20,
     mode='max',
     min_delta=0.002,                          # increase min metric increase
     verbose=False

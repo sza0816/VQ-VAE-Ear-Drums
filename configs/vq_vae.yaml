@@ -1,8 +1,8 @@
 model_params:
   name: 'VQVAE'              # model name
   in_channels: 3
-  embedding_dim: 64           # 
-  num_embeddings: 256
+  embedding_dim: 64           # for codebook
+  num_embeddings: 128
   img_size: 64
   beta: 0.25                  #
   alpha_q: 0.5
