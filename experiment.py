@@ -50,6 +50,7 @@ class VAEXperiment(pl.LightningModule):
         self.train_ms_ssims = []                           # ms-ssim
         self.val_ms_ssims = []
  
+        self.train_nlpds = []
         self.val_nlpds = []                              # nlpd
 
         self.lpips_metrics = lpips.LPIPS(net='alex').to(self.curr_device if self.curr_device else 'cuda')       # lpips
@@ -142,6 +143,10 @@ class VAEXperiment(pl.LightningModule):
 
         all_train_mse = []
         all_train_ms_ssim = []
+        all_train_nlpd = []
+
+        sigma2_tensor = torch.tensor(1.0, device=self.curr_device)
+        const_term = 0.5 * torch.log(2 * math.pi * sigma2_tensor)
  
         for real_img, labels in train_loader: 
             real_img = real_img.to(self.curr_device) 
@@ -149,7 +154,7 @@ class VAEXperiment(pl.LightningModule):
         
             with torch.no_grad(): 
                 # take reconstruction result 
-                recons = self.model(real_img, labels=labels)[0] 
+                recons = self.model(real_img, labels=labels)[0]
         
             all_train_psnr.append(self.psnr(recons, real_img)) 
             all_train_ssim.append(self.ssim(recons, real_img)) 
@@ -161,17 +166,24 @@ class VAEXperiment(pl.LightningModule):
                 betas=(0.4,0.4,0.2),
                 data_range=1.0
             ))
+
+            pixel_mse = (real_img-recons)**2                          # nlpd
+            nlpd_map = const_term+pixel_mse/(2*sigma2_tensor)
+            nlpd_sample = nlpd_map.mean()
+            all_train_nlpd.append(nlpd_sample.cpu())
  
         # avg metric values of each batch
         avg_train_psnr = torch.stack(all_train_psnr).mean() 
         avg_train_ssim = torch.stack(all_train_ssim).mean() 
         avg_train_mse = torch.stack(all_train_mse).mean()
         avg_train_ms_ssim = torch.stack(all_train_ms_ssim).mean()
+        avg_train_nlpd = torch.stack(all_train_nlpd).mean()
         
         self.log("train_psnr", avg_train_psnr, prog_bar=True, sync_dist=True)  
         self.log("train_ssim", avg_train_ssim, prog_bar=True, sync_dist=True)
         self.log("train_mse", avg_train_mse, prog_bar=True)
         self.log("train_ms_ssim", avg_train_ms_ssim, prog_bar=True, sync_dist=True)
+        self.log("train_nlpd", avg_train_nlpd, prog_bar=True, sync_dist=True)
         
         # print metrics
         print(
@@ -179,7 +191,8 @@ class VAEXperiment(pl.LightningModule):
             f"\nTrain PSNR: {avg_train_psnr:.2f},"
             f"\nTrain SSIM: {avg_train_ssim:.4f},"
             f"\nTrain MSE: {avg_train_mse:.6f}, "
-            f"\nTrain MS-SSIM: {avg_train_ms_ssim}"
+            f"\nTrain MS-SSIM: {avg_train_ms_ssim}, "
+            f"\nTrain NLPD: {avg_train_nlpd}"
             )  
         
         # append metrics to list
@@ -187,6 +200,7 @@ class VAEXperiment(pl.LightningModule):
         self.train_ssims.append(avg_train_ssim.item()) 
         self.train_mses.append(avg_train_mse.item())
         self.train_ms_ssims.append(avg_train_ms_ssim.item())
+        self.train_nlpds.append(avg_train_nlpd.item())
  
     def on_validation_epoch_end(self):                                                # 
         avg_loss = torch.stack(self.validation_step_outputs).mean() 
@@ -322,6 +336,7 @@ class VAEXperiment(pl.LightningModule):
         axs[0].legend()
         axs[0].grid(True) 
 
+        axs[1].plot(self.train_nlpds, label="Train NLPD")
         axs[1].plot(self.val_nlpds, label="Val NLPD") 
         axs[1].set_xlabel("Epoch") 
         axs[1].set_ylabel("NLPD") 
@@ -379,15 +394,16 @@ class VAEXperiment(pl.LightningModule):
 
 
 
-        # print metrics of the final epoch
-        print("\n[Final Epoch Metrics]") 
-        print(f"{'Metric':<15} {'Train':>12} {'Validation':>12}") 
-        print("-" * 41) 
-        print(f"{'Loss':<15} {self.train_losses[-1]:>12.6f} {self.val_losses[-1]:>12.6f}") 
-        print(f"{'PSNR':<15} {self.train_psnrs[-1]:>12.2f} {self.val_psnrs[-1]:>12.2f}") 
-        print(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}") 
-        print(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}") 
-        print(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}")
-        print(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}")
-        print(f"{'NLPD':<15} {'-':>12} {self.val_nlpds[-1]:>12.4f}")
-        print(f"{'LPIPS':<15} {'-':>12} {self.val_lpips[-1]:>12.4f}") 
+        metrics_path = os.path.join(self.logger.log_dir, "final_metrics.txt") 
+        with open(metrics_path, "w") as f: 
+            f.write("[Final Epoch Metrics]\n") 
+            f.write(f"{'Metric':<15} {'Train':>12} {'Validation':>12}\n") 
+            f.write("-" * 41 + "\n") 
+            f.write(f"{'Loss':<15} {self.train_losses[-1]:>12.6f} {self.val_losses[-1]:>12.6f}\n") 
+            f.write(f"{'PSNR':<15} {self.train_psnrs[-1]:>12.2f} {self.val_psnrs[-1]:>12.2f}\n") 
+            f.write(f"{'SSIM':<15} {self.train_ssims[-1]:>12.4f} {self.val_ssims[-1]:>12.4f}\n") 
+            f.write(f"{'MSE':<15} {self.train_mses[-1]:>12.6f} {self.val_mses[-1]:>12.6f}\n") 
+            f.write(f"{'FID':<15} {'-':>12} {self.val_fids[-1]:>12.4f}\n") 
+            f.write(f"{'MS-SSIM':<15} {self.train_ms_ssims[-1]:>12.4f} {self.val_ms_ssims[-1]:>12.4f}\n") 
+            f.write(f"{'NLPD':<15} {self.train_nlpds[-1]:12.4f} {self.val_nlpds[-1]:>12.4f}\n") 
+            f.write(f"{'LPIPS':<15} {'-':>12} {self.val_lpips[-1]:>12.4f}\n") 

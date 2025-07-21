@@ -2,7 +2,7 @@ model_params:
   name: 'VQVAE'              # model name
   in_channels: 3
   embedding_dim: 64           # for codebook
-  num_embeddings: 128
+  num_embeddings: 64
   img_size: 64
   beta: 0.25                  #
   alpha_q: 0.5
@@ -32,6 +32,6 @@ trainer_params:
 
 logging_params:
   save_dir: "logs/"
-  name: 'Autoscope_VQVAE'
+  name: 'VQVAE'
 
 # Note: 
