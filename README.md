@@ -40,7 +40,7 @@ $ pip install -r requirements.txt        # --no-user if in virtual env
 $ conda activate <env>
 $ cd Ear-Drum-VQVAE           # if needed
 $ sbatch job.slurm
-# squeue -u <username>     # check job status
+# squeue -u <username>        # check job status
 
 # or run locally
 $python run.py --conf configs/vq_vae.yaml
@@ -89,7 +89,69 @@ logging_params:
 $ cd logs/<experiment name>/version_<the version you want>
 $ tensorboard --logdir .
 ```
+### Known Warnings
+You may encounter warnings related to deprecated pretrained parameters in ```torchvision```
 
+```
+UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated...
+```
+
+They are triggered internally by LPIPS. I chose not to modify the library code since they do not affect the evaluation. You can savely ignore them.
+
+### Output Structure
+Each training run (via sbatch job.slurm) creates a new folder under ```logs/VQVAE/```
+
+```
+logs/ 
+└── VQVAE/ 
+    ├── version_n/ 
+    │   ├── checkpoints/                      # Model checkpoints 
+    │   ├── Reconstructions/                  # Reconstructed images per epoch 
+    │   ├── codebook_usage_cdf.png            # Codebook usage CDF 
+    │   ├── fid_lpips_curve.png               # FID and LPIPS curves 
+    │   ├── loss_curve.png                    # Training loss curve 
+    │   ├── mse_nlpd_curve.png                # MSE and NLPD curves 
+    │   ├── psnr_ssim_msssim_curves.png       # PSNR, SSIM, MS-SSIM curves 
+    │   ├── final_metrics.txt                 # Metrics from the last epoch 
+    │   ├── hparams.yaml                      # Hyperparameters for this run 
+    │   └── events.out.tfevents...            # TensorBoard log file 
+    ├── vqvae.out                             # Stdout log (epoch metrics, progress) 
+    └── vqvae.err                             # Stderr log (warnings, device info) 
+```
+
+ - ```vqvae.out``` logs the full training process, including metric values per epoch. 
+ - ```vqvae.err``` contains environment info and expected warnings (LPIPS-related deprecations)
+
+### Evaluation
+Several variants of the straight-through estimator (STE) for the quantized output q (quantized_latents) in the VQ-VAE forward pass. The results are summarized below: 
+
+ - **Base case** (standard STE):
+   - formula: `q = e + (q - z).detach() `
+   - Reconstructions: slightly blurry
+   - Reference: version_7
+ - **Modified STE 1**: 
+   - formula: `q = e + q - z.detach()`
+   - Reconstructions: noticeably blurrier than base
+   - Reference: version_8
+ - **Modified STE 2** (misunderstood version):
+   - formula: `q = e + alpha * (q - z).detach()`
+   - Reconstructions: significantly sharper
+   - **Note**: The formula performs well but lacks theoretical justification
+   - Reference: version_9
+ - **Modified STE 3** (intended alternative):
+   - formula: `q = e + alpha * q + (beta * q - z).detach()`
+   - Reconstructions: slightly blurrier than base
+   - **Note**: May require more tuning; not further optimized due to time
+   - Reference: version_10 to version_13
+
+**Final Reconstructions Comparison**
+| Variant          | Formula                                  | Codebook Usage | Final LPIPS | Reconstruction                         |
+|------------------|------------------------------------------|----------------|-------------|----------------------------------------|
+| **Base (v7)**    | `q = e + (q - z).detach()`               | ~70%           | ~0.10       | ![](examples/version_7_epoch_216.png)  |
+| **STE #1 (v8)**  | `q = e + q - z.detach()`                 | 30–40%         | 0.10–0.20   | ![](examples/version_8_epoch_194.png)  |
+| **STE #2 (v9)**  | `q = e + α * (q - z).detach()`           | 15–30%         | ~0.05       | ![](examples/version_9_epoch_217.png)  |
+| **STE #3 (v12)** | `q = e + α * q + (β * q - z).detach()`   | 15–50%         | 0.13–0.18   | ![](examples/version_12_epoch_224.png) |
 
 ### License
 **Apache License 2.0**
