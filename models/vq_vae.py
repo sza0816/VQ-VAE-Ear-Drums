@@ -53,9 +53,10 @@ class VectorQuantizer(nn.Module):
         vq_loss = commitment_loss * self.beta + embedding_loss
 
         # Add the residue back to the latents
-        # quantized_latents = latents + (quantized_latents - latents).detach()         # method 0, better with min_delta = 30
-        # quantized_latents = latents + quantized_latents - latents.detach()             # method 1, min_delta = 20 is fine
-        quantized_latents = latents + self.alpha * ( quantized_latents - latents).detach()  # method 2, min_delta = 20 is fine
+        # quantized_latents = latents + (quantized_latents - latents).detach()         # standard method 0
+        # quantized_latents = latents + quantized_latents - latents.detach()             # method 1
+        # quantized_latents = latents + self.alpha * ( quantized_latents - latents).detach()  # method 2
+        quantized_latents = latents + self.alpha*quantized_latents +((1-self.alpha)*quantized_latents - latents).detach() # method 3, corrected formula
 
         return (  
             quantized_latents.permute(0, 3, 1, 2).contiguous(), # [B x D x H x W]

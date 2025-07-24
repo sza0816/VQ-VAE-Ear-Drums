@@ -5,7 +5,7 @@ model_params:
   num_embeddings: 64
   img_size: 64
   beta: 0.25                  #
-  alpha_q: 0.5
+  alpha_q: 0.3
 
 data_params:
   # data_path: "/isilon/datalake/gurcan_rsch/scratch/otoscope/Hao/compare_frame_selection/data/Auto_selected_new_all"           # total = 160 imgs
