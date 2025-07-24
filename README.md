@@ -146,12 +146,12 @@ Several variants of the straight-through estimator (STE) for the quantized outpu
    - Reference: version_10 to version_13
 
 **Final Reconstructions Comparison**
-| Variant          | Formula                                  | Codebook Usage | Final LPIPS | Reconstruction                         |
-|------------------|------------------------------------------|----------------|-------------|----------------------------------------|
-| **Base (v7)**    | `q = e + (q - z).detach()`               | ~70%           | ~0.10       | ![](examples/version_7_epoch_216.png)  |
-| **STE #1 (v8)**  | `q = e + q - z.detach()`                 | 30–40%         | 0.10–0.20   | ![](examples/version_8_epoch_194.png)  |
-| **STE #2 (v9)**  | `q = e + α * (q - z).detach()`           | 15–30%         | ~0.05       | ![](examples/version_9_epoch_217.png)  |
-| **STE #3 (v12)** | `q = e + α * q + (β * q - z).detach()`   | 15–50%         | 0.13–0.18   | ![](examples/version_12_epoch_224.png) |
+| Variant     | Formula                                  | Codebook Usage | Final LPIPS | Sample Reconstructions                 |
+|-------------|------------------------------------------|----------------|-------------|----------------------------------------|
+| **Base**    | `q = e + (q - z).detach()`               | ~70%           | ~0.10       | ![](examples/version_7_epoch_216.png)  |
+| **STE #1**  | `q = e + q - z.detach()`                 | 30–40%         | 0.10–0.20   | ![](examples/version_8_epoch_194.png)  |
+| **STE #2**  | `q = e + α * (q - z).detach()`           | 15–30%         | ~0.05       | ![](examples/version_9_epoch_217.png)  |
+| **STE #3**  | `q = e + α * q + (β * q - z).detach()`   | 15–50%         | 0.13–0.18   | ![](examples/version_12_epoch_224.png) |
 
 ### License
 **Apache License 2.0**
@@ -176,5 +176,5 @@ Several variants of the straight-through estimator (STE) for the quantized outpu
   howpublished = {\url{https://github.com/AntixK/PyTorch-VAE}}
 }
 
-$ This repository adapts AntixK's code for a specific medical imaging use case.
+# This repository adapts AntixK's code for a specific medical imaging use case.
 ```
