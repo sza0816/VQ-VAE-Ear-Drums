@@ -124,7 +124,7 @@ logs/
  - ```vqvae.err``` contains environment info and expected warnings (LPIPS-related deprecations)
 
 ### Evaluation
-Several variants of the straight-through estimator (STE) for the quantized output q (quantized_latents) in the VQ-VAE forward pass. The results are summarized below: 
+Several variants of the straight-through estimator (STE) for the quantized output q (quantized_latents) in the VQ-VAE forward pass were experimented. The results are summarized below: 
 
  - **Base case** (standard STE):
    - formula: `q = e + (q - z).detach() `
