@@ -123,7 +123,7 @@ class VAEDataset(LightningDataModule):                        # imported to run.
             self.val_dataset,
             batch_size=self.val_batch_size,
             num_workers=self.num_workers,
-            shuffle=True,
+            shuffle=False,
             pin_memory=self.pin_memory,
         )
      
